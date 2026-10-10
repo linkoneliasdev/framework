@@ -1,0 +1,47 @@
+
+=============== PADRÃO ===================
+- Modificar arquivos firebase em /public/js/firebase-config.js
+
+=============== GIT ======================
+1. Antes da IA:
+   ./git.sh
+   opção 8
+   cria backup antes da IA
+
+2. Rodo a IA:
+   aider --model deepseek/deepseek-chat
+
+3. Depois da IA:
+   ./git.sh
+   opção 3
+   vejo o que mudou
+
+4. Se gostei:
+   opção 4
+   crio commit
+
+5. Se não gostei:
+   opção 11
+   reverto alterações não commitadas
+
+
+   Antes da IA mexer:
+opção 8
+
+Para ver o que mudou:
+opção 3
+
+Para salvar:
+opção 4
+
+Para salvar e subir:
+opção 6
+
+Para desfazer coisa não salva:
+opção 11
+
+Para desfazer último commit mantendo arquivos:
+opção 12
+
+Para apagar último commit e mudanças:
+opção 13

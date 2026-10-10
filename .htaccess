@@ -1,0 +1,26 @@
+RewriteEngine On
+RewriteBase /
+
+# Bloqueia acesso direto a pastas internas
+RewriteRule ^app/ - [F,L]
+RewriteRule ^vendor/ - [F,L]
+RewriteRule ^storage/ - [F,L]
+RewriteRule ^\.env$ - [F,L]
+RewriteRule ^up\.sh$ - [F,L]
+
+
+# Página pública de login, registro e recuperação
+RewriteRule ^login$ pages/auth/login.php [L]
+RewriteRule ^registrar$ pages/auth/registrar.php [L]
+RewriteRule ^forgot$ pages/auth/forgot.php [L]
+
+# API
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+
+# Se for arquivo ou pasta real, deixa acessar
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Todo o resto vai para o index protegido
+RewriteRule ^(.*)$ index.php?pagina=$1 [L,QSA]
