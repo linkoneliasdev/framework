@@ -1,26 +1,28 @@
 RewriteEngine On
 RewriteBase /
 
-# Bloqueia acesso direto a pastas internas
-RewriteRule ^app/ - [F,L]
-RewriteRule ^vendor/ - [F,L]
-RewriteRule ^storage/ - [F,L]
-RewriteRule ^\.env$ - [F,L]
-RewriteRule ^up\.sh$ - [F,L]
+# Bloqueia acesso HTTP direto a pastas e arquivos internos.
+RewriteRule ^app/ - [F,END]
+RewriteRule ^vendor/ - [F,END]
+RewriteRule ^storage/ - [F,END]
+RewriteRule ^pages/ - [F,END]
+RewriteRule ^\.env(?:\..*)?$ - [F,END]
+RewriteRule ^up\.sh$ - [F,END]
+RewriteRule ^composer\.(?:json|lock)$ - [F,END]
 
+# Páginas públicas de autenticação.
+# END evita que os destinos internos sejam processados novamente pelas regras.
+RewriteRule ^login$ pages/auth/login.php [END]
+RewriteRule ^registrar$ pages/auth/registrar.php [END]
+RewriteRule ^forgot$ pages/auth/forgot.php [END]
 
-# Página pública de login, registro e recuperação
-RewriteRule ^login$ pages/auth/login.php [L]
-RewriteRule ^registrar$ pages/auth/registrar.php [L]
-RewriteRule ^forgot$ pages/auth/forgot.php [L]
+# Endpoints da API são acessados diretamente por suas rotas.
+RewriteRule ^api/ - [END]
 
-# API
-RewriteRule ^api/(.*)$ api/$1 [L,QSA]
-
-# Se for arquivo ou pasta real, deixa acessar
+# Arquivos públicos existentes (CSS, JS, imagens etc.).
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+RewriteRule ^ - [END]
 
-# Todo o resto vai para o index protegido
-RewriteRule ^(.*)$ index.php?pagina=$1 [L,QSA]
+# Demais URLs passam pelo roteador protegido.
+RewriteRule ^(.*)$ index.php?pagina=$1 [END,QSA]
