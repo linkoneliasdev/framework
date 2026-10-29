@@ -63,7 +63,11 @@ function normalizeProjectDomain(string $value): ?string
         return null;
     }
 
-    if (isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])) {
+    if (
+        isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])
+        || (isset($parts['path']) && $parts['path'] !== '' && $parts['path'] !== '/')
+        || isset($parts['query']) || isset($parts['fragment'])
+    ) {
         return null;
     }
 
