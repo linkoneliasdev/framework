@@ -1,36 +1,35 @@
 <?php
 
-function getLayoutRole()
+function getLayoutRole(?string $role = null): string
 {
-    $role = currentUserRole();
+    $role = $role ?? currentUserRole();
 
     $allowedRoles = [
         'user',
-        'admin'
+        'collaborator',
+        'admin',
     ];
 
-    if (!in_array($role, $allowedRoles, true)) {
-        return 'user';
-    }
-
-    return $role;
+    return in_array($role, $allowedRoles, true) ? $role : 'user';
 }
 
-function isActive($paginas)
+function isActive($paginas): string
 {
-    // página atual SEM role
     $paginaAtual = $_GET['pagina'] ?? 'dashboard';
-
-    $paginaAtual = trim($paginaAtual, '/');
+    $paginaAtual = trim((string) $paginaAtual, '/');
     $paginaAtual = urldecode($paginaAtual);
-    $paginaAtual = preg_replace('/[^a-zA-Z0-9_\-]/', '', $paginaAtual);
+    $paginaAtual = preg_replace('/[^a-zA-Z0-9_\/-]/', '', $paginaAtual);
     $paginaAtual = strtolower($paginaAtual ?: 'dashboard');
 
-    $paginas = (array) $paginas;
+    // Quando a URL contém o prefixo do perfil, compara apenas o nome da página.
+    $partes = explode('/', $paginaAtual);
+    if (count($partes) > 1 && in_array($partes[0], ['admin', 'collaborator', 'user'], true)) {
+        array_shift($partes);
+        $paginaAtual = implode('/', $partes);
+    }
 
-    foreach ($paginas as $pagina) {
-
-        $pagina = strtolower(trim($pagina, '/'));
+    foreach ((array) $paginas as $pagina) {
+        $pagina = strtolower(trim((string) $pagina, '/'));
 
         if ($pagina === $paginaAtual) {
             return 'active open';
