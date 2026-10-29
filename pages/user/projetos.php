@@ -42,7 +42,7 @@ $escape = static function ($value): string {
     <i class="bx bx-info-circle fs-4"></i>
     <div>
         <strong>Como funciona?</strong>
-        <div>Por enquanto, esta área cadastra o site e gera uma chave pública identificadora. A instalação do rastreador, criação de links e coleta de visitas serão etapas posteriores.</div>
+        <div>Cadastre o domínio e instale o código de rastreamento para registrar visualizações de páginas e eventos anônimos.</div>
     </div>
 </div>
 
@@ -99,7 +99,13 @@ $escape = static function ($value): string {
                         </td>
                         <td><?= $escape(date('d/m/Y', strtotime((string) $project['created_at']))) ?></td>
                         <td class="text-end">
-                            <div class="d-inline-flex gap-1">
+                            <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
+                                <button type="button" class="btn btn-sm btn-outline-primary btnInstalarProjeto"
+                                        data-name="<?= $escape($project['name']) ?>"
+                                        data-domain="<?= $escape($project['domain']) ?>"
+                                        data-snippet="<?= $escape('<script defer src="' . APP_URL . '/api/tracker.js.php?key=' . rawurlencode($project['public_key']) . '"></script>') ?>">
+                                    <i class="bx bx-code-alt me-1"></i> Instalar
+                                </button>
                                 <button type="button" class="btn btn-sm btn-icon btn-text-primary btnEditarProjeto"
                                         title="Editar projeto"
                                         data-id="<?= (int) $project['id'] ?>"
@@ -158,6 +164,34 @@ $escape = static function ($value): string {
     </div>
 </div>
 
+
+<div class="modal fade" id="modalInstalacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Instalar rastreador</h5>
+                    <small class="text-muted" id="detalheInstalacao"></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>Copie este código e cole no HTML do seu site, de preferência antes do fechamento da tag <code>&lt;/body&gt;</code>.</p>
+                <div class="alert alert-warning">
+                    <i class="bx bx-info-circle me-1"></i>
+                    A chave é pública e identifica o projeto; ela não deve ser usada como senha. A coleta valida o domínio cadastrado.
+                </div>
+                <label for="codigoInstalacao" class="form-label">Código de instalação</label>
+                <textarea id="codigoInstalacao" class="form-control font-monospace" rows="3" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="btnCopiarInstalacao"><i class="bx bx-copy me-1"></i> Copiar código</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     'use strict';
@@ -170,6 +204,29 @@ document.addEventListener('DOMContentLoaded', function () {
     var btnSalvar = document.getElementById('btnSalvarProjeto');
     var textoBtnSalvar = document.getElementById('textoBtnSalvarProjeto');
     var spinner = document.getElementById('spinnerProjeto');
+
+    var modalInstalacao = new bootstrap.Modal(document.getElementById('modalInstalacao'));
+    var codigoInstalacao = document.getElementById('codigoInstalacao');
+    var detalheInstalacao = document.getElementById('detalheInstalacao');
+
+    document.querySelectorAll('.btnInstalarProjeto').forEach(function (button) {
+        button.addEventListener('click', function () {
+            codigoInstalacao.value = button.dataset.snippet || '';
+            detalheInstalacao.textContent = button.dataset.name + ' — ' + button.dataset.domain;
+            modalInstalacao.show();
+        });
+    });
+
+    document.getElementById('btnCopiarInstalacao').addEventListener('click', async function () {
+        try {
+            await navigator.clipboard.writeText(codigoInstalacao.value);
+            mostrarMensagem('Código de instalação copiado.', 'success');
+        } catch (error) {
+            codigoInstalacao.focus();
+            codigoInstalacao.select();
+            mostrarMensagem('Não foi possível copiar automaticamente. O código está selecionado para cópia manual.', 'warning');
+        }
+    });
 
     function mostrarMensagem(texto, tipo) {
         mensagem.textContent = texto;
