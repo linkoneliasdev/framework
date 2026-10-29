@@ -65,10 +65,7 @@ function isCollaborator(): bool
     return currentUserRole() === 'collaborator';
 }
 
-/**
- * Mantido para compatibilidade com código existente.
- * Agora a função também sincroniza o papel com o banco.
- */
+/** Mantida para compatibilidade com código existente. */
 function isAdminDb(PDO $pdo): bool
 {
     return syncUserRole($pdo) === 'admin';
@@ -80,8 +77,7 @@ function requireRole(array $allowedRoles, PDO $pdo): void
 
     if (!in_array($role, $allowedRoles, true)) {
         http_response_code(403);
-        header('Location: /403');
-        exit;
+        exit('Acesso negado.');
     }
 }
 
