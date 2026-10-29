@@ -1,62 +1,91 @@
 <?php
 
-function isLogged()
+function isLogged(): bool
 {
-    return isset($_SESSION['user']) && !empty($_SESSION['user']['id']);
+    return isset($_SESSION['user']['id']) && (int) $_SESSION['user']['id'] > 0;
 }
 
-function currentUser()
+function currentUser(): ?array
 {
     return $_SESSION['user'] ?? null;
 }
 
-function isAdmin()
+function currentUserRole(): string
 {
-    return isset($_SESSION['user']['role']) 
-        && $_SESSION['user']['role'] === 'admin';
+    $role = $_SESSION['user']['role'] ?? 'user';
+
+    return in_array($role, ['admin', 'collaborator', 'user'], true)
+        ? $role
+        : 'user';
 }
 
-function isAdminDb($pdo)
+/**
+ * Revalida o papel no banco em cada requisição autenticada.
+ * O papel nunca deve ser aceito de parâmetros enviados pelo navegador.
+ */
+function syncUserRole(PDO $pdo): string
 {
-    if (!isset($_SESSION['user']['id'])) {
-        return false;
+    if (!isLogged()) {
+        return 'user';
     }
 
-    // cache de 5 minutos
-    if (isset($_SESSION['user']['role_checked_at'])) {
+    $stmt = $pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([(int) $_SESSION['user']['id']]);
+    $role = $stmt->fetchColumn();
 
-        $lastCheck = $_SESSION['user']['role_checked_at'];
-
-        if (time() - $lastCheck < 300) {
-            return $_SESSION['user']['role'] === 'admin';
+    if ($role === false) {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
         }
+
+        header('Location: /login');
+        exit;
     }
 
-    // consulta banco
-    $stmt = $pdo->prepare("
-        SELECT role 
-        FROM users 
-        WHERE id = ?
-        LIMIT 1
-    ");
+    $role = strtolower(trim((string) $role));
 
-    $stmt->execute([$_SESSION['user']['id']]);
+    if (!in_array($role, ['admin', 'collaborator', 'user'], true)) {
+        $role = 'user';
+    }
 
-    $role = $stmt->fetchColumn() ?: 'user';
-
-    // atualiza sessão
     $_SESSION['user']['role'] = $role;
     $_SESSION['user']['role_checked_at'] = time();
 
-    return $role === 'admin';
+    return $role;
 }
 
-function currentUserRole()
+function isAdmin(): bool
 {
-    return $_SESSION['user']['role'] ?? 'user';
+    return currentUserRole() === 'admin';
 }
 
-function requireLogin()
+function isCollaborator(): bool
+{
+    return currentUserRole() === 'collaborator';
+}
+
+/**
+ * Mantido para compatibilidade com código existente.
+ * Agora a função também sincroniza o papel com o banco.
+ */
+function isAdminDb(PDO $pdo): bool
+{
+    return syncUserRole($pdo) === 'admin';
+}
+
+function requireRole(array $allowedRoles, PDO $pdo): void
+{
+    $role = syncUserRole($pdo);
+
+    if (!in_array($role, $allowedRoles, true)) {
+        http_response_code(403);
+        header('Location: /403');
+        exit;
+    }
+}
+
+function requireLogin(): void
 {
     if (!isLogged()) {
         header('Location: /login');
@@ -64,10 +93,10 @@ function requireLogin()
     }
 }
 
-function requireGuest()
+function requireGuest(): void
 {
     if (isLogged()) {
-        header("Location: /");
+        header('Location: /');
         exit;
     }
 }
