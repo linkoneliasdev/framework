@@ -1,40 +1,51 @@
 <?php
 
-session_start();
-
 require_once __DIR__ . '/../../app/includes/config.php';
+require_once __DIR__ . '/../../app/includes/session.php';
+startAppSession();
 require_once __DIR__ . '/../../app/includes/db.php';
 
-use Kreait\Firebase\Factory;
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
 
-
-if (!isset($_POST['idToken'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
     echo json_encode([
         'success' => false,
-        'message' => 'Token não enviado'
+        'message' => 'Método não permitido',
+    ]);
+    exit;
+}
+
+if (empty($_POST['idToken']) || !is_string($_POST['idToken'])) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Token não enviado',
     ]);
     exit;
 }
 
 $idToken = $_POST['idToken'];
-$nome_input = $_POST['nome'] ?? '';
-$phone_input = $_POST['phone'] ?? '';
-$device_hash = $_POST['device_hash'] ?? '';
+$nomeInput = trim((string) ($_POST['nome'] ?? ''));
+$phoneInput = trim((string) ($_POST['phone'] ?? ''));
+$deviceHash = trim((string) ($_POST['device_hash'] ?? ''));
 
 try {
-
-    $factory = (new Factory)
+    $factory = (new \Kreait\Firebase\Factory())
         ->withServiceAccount($_ENV['FIREBASE_CREDENTIALS']);
 
     $auth = $factory->createAuth();
-
     $verifiedIdToken = $auth->verifyIdToken($idToken);
 
-    $uid = $verifiedIdToken->claims()->get('sub');
-    $email = $verifiedIdToken->claims()->get('email');
-    $nome = $nome_input ?: ($verifiedIdToken->claims()->get('name') ?? 'Usuário');
+    $uid = (string) $verifiedIdToken->claims()->get('sub');
+    $email = (string) $verifiedIdToken->claims()->get('email');
+    $tokenName = (string) ($verifiedIdToken->claims()->get('name') ?? 'Usuário');
+    $nome = mb_substr($nomeInput !== '' ? $nomeInput : $tokenName, 0, 150);
+    $phone = mb_substr($phoneInput, 0, 30);
+    $deviceHash = mb_substr($deviceHash, 0, 255);
 
-   /*Salvar e dar um update no usuario*/
     $stmt = $pdo->prepare("
         INSERT INTO users (uid, name, email, phone, device_hash, created_at, last_login)
         VALUES (:uid, :name, :email, :phone, :device_hash, NOW(), NOW())
@@ -47,53 +58,49 @@ try {
         ':uid' => $uid,
         ':name' => $nome,
         ':email' => $email,
-        ':phone' => $phone_input,
-        ':device_hash' => $device_hash,
-        ':name_update' => $nome
+        ':phone' => $phone,
+        ':device_hash' => $deviceHash,
+        ':name_update' => $nome,
     ]);
 
-    /*Buscar usuario com o role  = nivel*/
     $stmtUser = $pdo->prepare("
         SELECT id, uid, name, email, role
         FROM users
         WHERE uid = ?
         LIMIT 1
     ");
-
     $stmtUser->execute([$uid]);
-
     $user = $stmtUser->fetch();
 
     if (!$user) {
-        throw new Exception("Erro ao buscar usuário.");
+        throw new RuntimeException('Não foi possível carregar o usuário autenticado.');
     }
 
-  /*Criando a session*/
+    $role = strtolower(trim((string) ($user['role'] ?? 'user')));
+    if (!in_array($role, ['admin', 'collaborator', 'user'], true)) {
+        $role = 'user';
+    }
+
     session_regenerate_id(true);
 
     $_SESSION['user'] = [
-        'id' => $user['id'],
+        'id' => (int) $user['id'],
         'uid' => $user['uid'],
         'name' => $user['name'],
         'email' => $user['email'],
-        'role' => $user['role'] ?? 'user'
+        'role' => $role,
     ];
 
-    echo json_encode([
-        'success' => true
-    ]);
-
+    echo json_encode(['success' => true]);
 } catch (\Throwable $e) {
+    http_response_code(401);
 
     if (APP_DEBUG) {
-        echo json_encode([
-            'success' => false,
-            'message' => $e->getMessage()
-        ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Erro ao autenticar'
-        ]);
+        error_log('Falha no auth bridge: ' . $e->getMessage());
     }
+
+    echo json_encode([
+        'success' => false,
+        'message' => APP_DEBUG ? 'Erro ao autenticar. Consulte o log do servidor.' : 'Erro ao autenticar',
+    ]);
 }
