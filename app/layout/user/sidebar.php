@@ -14,6 +14,9 @@
         <li class="menu-item <?= isActive(['dashboard']) ?>">
             <a href="/dashboard" class="menu-link"><i class="menu-icon tf-icons bx bx-home-circle"></i><div>Meu painel</div></a>
         </li>
+        <li class="menu-item <?= isActive(['projetos']) ?>">
+            <a href="/projetos" class="menu-link"><i class="menu-icon tf-icons bx bx-globe"></i><div>Projetos</div></a>
+        </li>
         <li class="menu-item <?= isActive(['consultas']) ?>">
             <a href="/consultas" class="menu-link"><i class="menu-icon tf-icons bx bx-search"></i><div>Minhas consultas</div></a>
         </li>
